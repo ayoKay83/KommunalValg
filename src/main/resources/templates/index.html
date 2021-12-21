@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+            crossorigin="anonymous"></script>
+</head>
+
+
+<body class="container">
+<h3>Politiske Kandidater</h3>
+<div style="height: 300px;overflow-y: scroll;">
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Id</th>
+            <th>Navn</th>
+            <th id="header">Parti</th>
+            <th>Antal Stemmer</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody id="user-table-body">
+        </tbody>
+    </table>
+</div>
+<div>
+    <button type="button" class="btn btn-primary" id="btn-add-user">
+        Tilføj kandidat
+    </button>
+    <input type="number" id="party-filter">
+    <button id="btn-filter-party" class="btn btn-primary">Søg på partibogstav</button>
+    <button id="btn-filter-clear" class="btn btn-info ">Ny søgning</button>
+</div>
+<p id="add-error-msg" class="alert alert-danger" style="max-width: 50%;display: none;" role="alert"></p>
+
+<!-- Modal -->
+<div class="modal fade" id="user-modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-title">Add User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>User ID: <span id="user-id"></span></p>
+                <form>
+                    <div class="mb-3">
+                        <label for="input-name" class="form-label">Navn</label>
+                        <input type="number" class="form-control" id="input-name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="input-party" class="form-label">Parti</label>
+                        <input type="number" class="form-control" id="input-party">
+                    </div>
+                    <div class="mb-3">
+                        <label for="input-votes" class="form-label">Antal Stemmer</label>
+                        <input type="text" class="form-control" id="input-votes">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">cancel</button>
+                <button id="btn-save" type="button" class="btn btn-primary" data-bs-dismiss="modal">Save changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!--END OF MODAL -->
+
+</body>
+</html>
+
+<script>
+
+    const URLpoliticians = "http://localhost:8080/politicians/";
+    const URLparties = "http://localhost:8080/parties/";
+    let politicians = []
+    let parties = []
+
+
+    fetchPoliticians()
+    setUpHandlers()
+
+    function setUpHandlers() {
+        document.getElementById("user-table-body").onclick = handleTableClick
+        document.getElementById("btn-save").onclick = savePolitician
+        document.getElementById("btn-add-user").onclick = makePolitician
+    }
+
+
+    function handleTableClick(evt) {
+        evt.preventDefault()
+        evt.stopPropagation()
+        const target = evt.target;
+
+        //DELETE
+        if (target.dataset.idDelete) {
+            const idToDelete = Number(target.dataset.idDelete)
+            const options = {
+                method: "DELETE",
+                headers: {'Accept': 'application/json'}
+            }
+            fetch(URL+"/"+idToDelete,options)
+                .then(res=>res.json())
+                .then(data=>{
+                    console.log(data)
+                    fetchPoliticians()
+                })
+        }
+        //EDIT
+        if (target.dataset.idEdit) {
+            const idToEdit = Number(target.dataset.idEdit)
+            const politician = politicians.find(p => p.politicianId == idToEdit)
+            showModal(politician)
+        }
+    }
+
+    function makePolitician() {
+        showModal({
+            politicianId: null,
+            name: "",
+            nbOfVotes: 0,
+        })
+    }
+
+    function showModal(politician) {
+        const myModal = new bootstrap.Modal(document.getElementById('user-modal'))
+        document.getElementById("modal-title").innerText = politician.politicianId ? "Edit User" : "Add User"
+        document.getElementById("user-id").innerText = politician.politicianId
+        document.getElementById("input-name").value = politician.name
+        document.getElementById("input-votes").value = politician.nbOfVotes
+        myModal.show()
+    }
+
+    function savePolitician() {
+        const politician = {}
+        politician.politicianId = Number(document.getElementById("user-id").innerText)
+        politician.name = document.getElementById("input-name").value
+        politician.nbOfVotes = document.getElementById("input-votes").value
+
+        const method = politician.politicianId ? "PUT" : "POST"
+        const url = (method === "PUT") ? URLpoliticians + "/" + politician.politicianId : URLpoliticians
+        const options = {
+            method: method,
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(politician)
+        }
+        fetch(url,options)
+            .then(res => {
+                if (!res.ok) {
+                    throw "Beklager, der er fejl i input"
+                }
+                return res.json()
+            })
+            .then(politician => {
+                fetchPoliticians()
+            })
+            .catch(e => alert(e))
+    }
+
+    function fetchParties() {
+        fetch(URLparties)
+            .then(res => res.json())
+            .then(data => {
+                parties = data
+            })
+    }
+
+        function fetchPoliticians() {
+            fetch(URLpoliticians)
+                .then(res => res.json())
+                .then(data => {
+                    politicians = data
+                    makeRows()
+                    console.log(data);
+                })
+        }
+
+
+        function makeRows() {
+            const rows = politicians.map(p => `
+            <tr>
+            <td>${p.politicianId}</td>
+            <td>${p.name}</td>
+            <td>${p.party.partyName}</td>
+            <td>${p.nbOfVotes}</td>
+            <td><a data-id-delete=${p.politicianId} href="#"">Delete</a></td>
+        <td><a data-data-edit='${p.politicianId}' href = "#">Edit</a></td>
+        </tr>`
+            )
+            document.getElementById("user-table-body").innerHTML = rows.join("")
+        }
+
+        makeRows()
+
+        let sorted = false;
+
+        document.getElementById("header").onclick = sort
+
+        function sort() {
+            if (!sorted) {
+                politicians.sort((pol1, pol2) => {
+                    if (pol1.party.partyName < pol2.party.partyName) {
+                        return -1
+                    }
+                    if (pol1.party.partyName > pol2.party.partyName) {
+                        return 1
+                    }
+                    return 0
+                })
+                sorted = true
+            } else if (sorted == true) {
+                politicians.reverse()
+            }
+            makeRows()
+        }
+
+</script>
